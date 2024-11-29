@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+    crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.0/dist/sweetalert2.all.min.js"></script>
+
+
+  <title>Second Page</title>
+  <style>
+    body {
+      background-color: #dbecfd;
+      margin-top: 40px;
+      font-family: 'Arial', sans-serif;
+    }
+
+    .user-photo {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: 3px solid #4CAF50;
+      object-fit: cover;
+    }
+
+    h1,
+    h2 {
+      color: #343a40;
+      font-weight: 600;
+      margin-bottom: 30px;
+    }
+
+    .btn-custom {
+      min-width: 150px;
+      margin: 10px 15px;
+    }
+
+    .note-inputs {
+      margin-bottom: 20px;
+    }
+
+    .note-item {
+      background-color: #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 10px;
+      padding: 15px;
+      border-radius: 8px;
+
+    }
+
+    .note-content-wrapper {
+      padding: 10px;
+    }
+
+    .note-title {
+      font-weight: 600;
+      color: #343a40;
+      font-size: 16px;
+    }
+
+    .note-content {
+      font-size: 14px;
+      color: #6c757d;
+      overflow-wrap: break-word;
+    }
+
+    .note-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .note-item small {
+      font-size: 12px;
+    }
+
+
+    .modal-content {
+      border-radius: 10px;
+    }
+
+    .modal-header {
+      background-color: #007bff;
+      color: white;
+      border-bottom: 2px solid #0056b3;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .modal-footer button {
+      border-radius: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container text-center">
+    <h1>用戶資訊</h1>
+
+    <!-- 功能按鈕 -->
+    <div class="mt-4">
+      <button id="showInfoBtn" class="btn btn-primary btn-custom" data-bs-toggle="modal"
+        data-bs-target="#userInfoModal">顯示資訊</button>
+      <button id="logoutBtn" class="btn btn-danger btn-custom">登出</button>
+    </div>
+
+    <!-- 筆記功能 -->
+    <div class="mt-5">
+      <h2>筆記功能</h2>
+      <div class="note-inputs">
+        <input id="noteTitle" type="text" class="form-control mb-2" placeholder="輸入筆記標題">
+        <textarea id="noteContent" class="form-control mb-2" rows="3" placeholder="輸入筆記內容"></textarea>
+        <button id="addNoteBtn" class="btn btn-success btn-custom">新增筆記</button>
+      </div>
+      <ul id="notesList" class="list-group"></ul>
+    </div>
+  </div>
+
+  <!-- Modal 彈出框 -->
+  <div class="modal fade" id="userInfoModal" tabindex="-1" aria-labelledby="userInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="userInfoModalLabel">用戶資訊</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center">
+          <img id="userPhoto" class="user-photo mb-3" src="" alt="User photo">
+          <p><strong>姓名:</strong> <span id="userName">載入中...</span></p>
+          <p><strong>Email:</strong> <span id="userEmail">載入中...</span></p>
+          <p><strong>最後登入時間:</strong> <span id="lastLogin">載入中...</span></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- 編輯筆記的 Modal -->
+  <div class="modal fade" id="editNoteModal" tabindex="-1" aria-labelledby="editNoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editNoteModalLabel">編輯筆記</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input id="editNoteTitle" type="text" class="form-control mb-2" placeholder="編輯標題">
+          <textarea id="editNoteContent" class="form-control mb-2" rows="3" placeholder="編輯內容"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button id="saveEditedNoteBtn" type="button" class="btn btn-primary">保存更改</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK 引入 -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import { getDatabase, ref, get, set, push, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+    // Firebase 配置
+    const firebaseConfig = {
+      apiKey: "AIzaSyA6nJBP4oFi7OXGACENdLr2pGaDuP_Kua0",
+      authDomain: "project-4922570573212354646.firebaseapp.com",
+      databaseURL: "https://project-4922570573212354646-default-rtdb.asia-southeast1.firebasedatabase.app/",
+      projectId: "project-4922570573212354646",
+      storageBucket: "project-4922570573212354646.firebasestorage.app",
+      messagingSenderId: "256731065015",
+      appId: "1:256731065015:web:1a8588ca098a09d8183b32"
+    };
+
+    // 初始化 Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const database = getDatabase(app);
+
+    let currentUser = null;
+
+    // 監聽用戶登入狀態
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUser = user;
+        loadUserInfo(user);  // 加載用戶資訊
+        loadNotes(user.uid);
+      } else {
+        // 用戶登出後，不再顯示「未登入！請重新登入。」
+        //window.location.href = "index.html";
+      }
+    });
+
+    // 登出功能
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      console.log("登出按鈕被點擊"); // 確認按鈕是否觸發
+      signOut(auth)
+        .then(() => {
+          console.log("登出成功"); // 確認 signOut 是否執行成功
+
+          // 顯示 SweetAlert
+          return Swal.fire({
+            title: '登出成功!',
+            text: '您已經成功登出。',
+            icon: 'success',
+            confirmButtonText: '確定',
+          });
+        })
+        .then((result) => {
+          console.log("SweetAlert 確定按鈕被點擊"); // 確認彈窗是否正常
+          if (result.isConfirmed) {
+            window.location.href = "index.html"; // 跳轉到登錄頁面
+          }
+        })
+        .catch((error) => {
+          console.error("登出過程中出錯：", error); // 捕獲登出過程中的錯誤
+          Swal.fire({
+            title: '錯誤',
+            text: '登出過程中發生錯誤。',
+            icon: 'error',
+            confirmButtonText: '重試',
+          });
+        });
+    });
+
+
+
+
+
+
+    // 加載用戶資訊
+    function loadUserInfo(user) {
+      document.getElementById("userName").textContent = user.displayName || "未設定";
+      document.getElementById("userEmail").textContent = user.email || "未設定";
+      document.getElementById("userPhoto").src = user.photoURL || "https://www.w3schools.com/howto/img_avatar.png";
+      document.getElementById("lastLogin").textContent = new Date(user.metadata.lastSignInTime).toLocaleString();
+    }
+
+    // 新增筆記功能
+    document.getElementById("addNoteBtn").addEventListener("click", () => {
+      const noteTitle = document.getElementById("noteTitle").value.trim();
+      const noteContent = document.getElementById("noteContent").value.trim();
+      if (noteTitle && noteContent && currentUser) {
+        const notesRef = ref(database, `notes/${currentUser.uid}`);
+        const timestamp = new Date().toLocaleString();
+        const newNote = {
+          title: noteTitle,
+          content: noteContent,
+          lastModified: timestamp,
+        };
+
+        push(notesRef, newNote).then(() => {
+          document.getElementById("noteTitle").value = "";
+          document.getElementById("noteContent").value = "";
+          loadNotes(currentUser.uid);
+        });
+      } else {
+        alert("請輸入標題和內容！");
+      }
+    });
+
+    function loadNotes(uid) {
+      const notesRef = ref(database, `notes/${uid}`);
+      get(notesRef).then((snapshot) => {
+        const notesList = document.getElementById("notesList");
+        notesList.innerHTML = "";
+        if (snapshot.exists()) {
+          const notes = snapshot.val();
+          Object.entries(notes).forEach(([key, note]) => {
+            const noteContainer = document.createElement("div");
+            noteContainer.className = "note-item";  // 使用 div 來包裝每個筆記項目
+
+            const noteContent = `
+          <div class="note-content-wrapper">
+            <h5 class="note-title">${note.title}</h5>
+            <p class="note-content">${note.content}</p>
+            <small class="text-muted">最後修改時間: ${note.lastModified}</small>
+          </div>
+        `;
+
+            noteContainer.innerHTML = noteContent;
+
+            // 刪除按鈕
+            const deleteBtn = document.createElement("button");
+            deleteBtn.className = "btn btn-danger btn-sm float-end";
+            deleteBtn.textContent = "刪除";
+            deleteBtn.addEventListener("click", () => {
+              Swal.fire({
+                title: '確定要刪除這個筆記嗎？',
+                text: "此操作無法撤銷！",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: '是的，刪除！',
+                cancelButtonText: '取消'
+              }).then((result) => {
+                if (result.isConfirmed) {
+                  // 如果用戶確認刪除，執行刪除操作
+                  remove(ref(database, `notes/${uid}/${key}`)).then(() => {
+                    Swal.fire(
+                      '已刪除！',
+                      '您的筆記已成功刪除。',
+                      'success'
+                    );
+                    loadNotes(uid);
+                  }).catch((error) => {
+                    console.error("刪除筆記時發生錯誤：", error);
+                    Swal.fire(
+                      '錯誤',
+                      '刪除筆記時發生錯誤，請稍後再試。',
+                      'error'
+                    );
+                  });
+                }
+              });
+            });
+
+
+            // 編輯按鈕
+            const editBtn = document.createElement("button");
+            editBtn.className = "btn btn-warning btn-sm float-end me-2";
+            editBtn.textContent = "編輯";
+            editBtn.addEventListener("click", () => {
+              // 填充 modal 中的內容
+              document.getElementById("editNoteTitle").value = note.title;
+              document.getElementById("editNoteContent").value = note.content;
+
+              // 設定編輯的筆記 ID
+              document.getElementById("saveEditedNoteBtn").onclick = () => {
+                const updatedNote = {
+                  title: document.getElementById("editNoteTitle").value.trim(),
+                  content: document.getElementById("editNoteContent").value.trim(),
+                  lastModified: new Date().toLocaleString(),
+                };
+
+                // 更新資料庫中的筆記
+                set(ref(database, `notes/${uid}/${key}`), updatedNote).then(() => {
+                  loadNotes(uid);  // 更新筆記列表
+                  // 關閉 modal
+                  const modal = bootstrap.Modal.getInstance(document.getElementById("editNoteModal"));
+                  modal.hide();
+                });
+              };
+
+              // 顯示 modal
+              const modal = new bootstrap.Modal(document.getElementById("editNoteModal"));
+              modal.show();
+            });
+
+            // 把按鈕加到筆記容器中
+            noteContainer.appendChild(deleteBtn);
+            noteContainer.appendChild(editBtn);
+            notesList.appendChild(noteContainer);  // 將 div 加入到容器中
+          });
+        }
+      });
+    }
+
+
+
+
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    crossorigin="anonymous"></script>
+</body>
+
+</html>
